@@ -7,10 +7,6 @@ var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
-var __export = (target, all) => {
-  for (var name2 in all)
-    __defProp(target, name2, { get: all[name2], enumerable: true });
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key2 of __getOwnPropNames(from))
@@ -4841,189 +4837,8 @@ var LiveAudio2 = ("object" == typeof exports && "object" == typeof module ? modu
   this.isCrossAudio = true, this.getBrowser = e;
 });
 
-// src/util.ts
-var util_exports = {};
-__export(util_exports, {
-  appendUint8Array: () => appendUint8Array,
-  arrayEquals: () => arrayEquals,
-  checkNumberEqual: () => checkNumberEqual,
-  checkNumberNotEqual: () => checkNumberNotEqual,
-  concatUint8Arrays: () => concatUint8Arrays,
-  getM3U8FromGUID: () => getM3U8FromGUID,
-  getM3U8FromWebPage: () => getM3U8FromWebPage,
-  getTsFromM3U8: () => getTsFromM3U8,
-  getURLAsJSON: () => getURLAsJSON,
-  getURLAsText: () => getURLAsText,
-  getURLAsUint8Array: () => getURLAsUint8Array
-});
-
-// src/cmdutil.ts
-var logFunc = (type, content) => {
-  switch (type) {
-    case 0 /* DEBUG */:
-      console.debug(content);
-      break;
-    case 1 /* LOG */:
-      console.log(content);
-      break;
-    case 2 /* WARN */:
-      console.warn(content);
-      break;
-    case 3 /* ERROR */:
-      console.error(content);
-      break;
-  }
-};
-var noLog = false;
-function setLogFunc(f) {
-  logFunc = f;
-}
-function log(content) {
-  if (noLog)
-    return;
-  logFunc(1 /* LOG */, content);
-}
-function warn(content) {
-  if (noLog)
-    return;
-  logFunc(2 /* WARN */, content);
-}
-function error(content) {
-  if (noLog)
-    return;
-  logFunc(3 /* ERROR */, content);
-}
-
-// src/util.ts
-function arrayEquals(a2, b2) {
-  return a2.length === b2.length && a2.every((el, idx) => el === b2.at(idx));
-}
-function checkNumberEqual(val, expected, errorMsg = "value mismatch", raiseError = true) {
-  if (val !== expected) {
-    if (raiseError)
-      throw new Error(errorMsg);
-    else
-      warn(errorMsg);
-  }
-}
-function checkNumberNotEqual(val, unexpected, errorMsg = "value unexpected", raiseError = true) {
-  if (val === unexpected) {
-    if (raiseError)
-      throw new Error(errorMsg);
-    else
-      warn(errorMsg);
-  }
-}
-function concatUint8Arrays(arr, toBuffer) {
-  const totalLength = arr.reduce((a2, e) => a2 + e.byteLength, 0);
-  let reallocated = false;
-  if (toBuffer && toBuffer.byteLength < totalLength) {
-    reallocated = true;
-    toBuffer = new ArrayBuffer(totalLength);
-  }
-  const newArr = new Uint8Array(
-    toBuffer ?? new ArrayBuffer(totalLength),
-    0,
-    totalLength
-  );
-  arr.reduce(
-    (a2, e) => {
-      newArr.set(e, a2);
-      return a2 + e.byteLength;
-    },
-    0
-  );
-  return newArr;
-}
-function appendUint8Array(dst, src) {
-  return concatUint8Arrays([dst, src], dst.buffer);
-}
-async function getURLAsUint8Array(url, fetchOptions) {
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok)
-    throw new Error(`URL returned error: ${response.status} ${response.statusText}`);
-  return new Uint8Array(await response.arrayBuffer());
-}
-async function getURLAsText(url, fetchOptions) {
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok)
-    throw new Error(`URL returned error: ${response.status} ${response.statusText}`);
-  return await response.text();
-}
-async function getURLAsJSON(url, fetchOptions) {
-  const response = await fetch(url, fetchOptions);
-  if (!response.ok)
-    throw new Error(`URL returned error: ${response.status} ${response.statusText}`);
-  return await response.json();
-}
-async function getM3U8FromWebPage(url, resolution, fetchOptions) {
-  if (!Number.isInteger(resolution))
-    throw new Error("resolution not integer");
-  const webpageContent = await getURLAsText(url, fetchOptions);
-  let guid;
-  for (const line of webpageContent.split("\n")) {
-    if (!line.match(/var\s+(?:video_)?guid\s*=/))
-      continue;
-    guid = line.replace(/.*(["'])(.*)\1.*/, "$2");
-    break;
-  }
-  if (!guid)
-    throw new Error("no guid found in webpage provided");
-  return await getM3U8FromGUID(guid, resolution, fetchOptions);
-}
-async function getM3U8FromGUID(guid, resolution, fetchOptions) {
-  if (!Number.isInteger(resolution))
-    throw new Error("resolution not integer");
-  log(`got guid "${guid}"`);
-  const videoInfo = await getURLAsJSON(
-    `https://vdn.apps.cntv.cn/api/getHttpVideoInfo.do?pid=${guid}`,
-    fetchOptions
-  );
-  if (videoInfo.ack === "no")
-    throw new Error(`invalid guid "${guid}"`);
-  const ret = videoInfo.manifest.hls_h5e_url.replace(/main/g, resolution.toString()).replace(/\?.*/, "");
-  log(`got link "${ret}"`);
-  return ret;
-}
-var Queue = class {
-  arr = [];
-  getPromiseResolves = [];
-  putPromiseResolves = [];
-  maxSize;
-  constructor(maxSize = 10) {
-    this.maxSize = maxSize;
-  }
-  async get() {
-    if (!this.arr.length)
-      await new Promise(
-        (resolve) => this.getPromiseResolves.push(resolve)
-      );
-    this.putPromiseResolves.shift()?.();
-    return this.arr.shift();
-  }
-  async put(el) {
-    if (this.arr.length >= this.maxSize)
-      await new Promise(
-        (resolve) => this.putPromiseResolves.push(resolve)
-      );
-    this.getPromiseResolves.shift()?.();
-    this.arr.push(el);
-  }
-};
-async function backgroundFetcher(urls, queue) {
-  for (const i2 in urls)
-    await queue.put(await getURLAsUint8Array(new URL(urls[i2][0], urls[i2][1])));
-}
-async function* getTsFromM3U8(url, fetchOptions) {
-  const m3u8Content = await getURLAsText(url, fetchOptions);
-  const queue = new Queue();
-  const urls = m3u8Content.split(/\n/).filter((l) => l && !l.match(/^#/)).map((e) => [e, url]);
-  backgroundFetcher(urls, queue);
-  for (let i2 = 0; i2 < urls.length; i2++)
-    yield [await queue.get(), urls.length];
-}
-
 // src/nalutil.ts
+import * as util from "./util.js";
 var NAL_START_FIRST = Uint8Array.of(0, 0, 0, 1);
 var NAL_START_SECOND = Uint8Array.of(0, 0, 1);
 function getNALUPos(buf) {
@@ -5046,7 +4861,7 @@ function splitNALU(buf) {
   );
 }
 function joinNALU(nalus) {
-  return concatUint8Arrays(nalus.map((e, i2) => e.dump()));
+  return util.concatUint8Arrays(nalus.map((e, i2) => e.dump()));
 }
 var NALU = class {
   start;
@@ -5058,11 +4873,11 @@ var NALU = class {
   constructor(data) {
     if (data.length <= 4)
       throw new Error("data length <= 4");
-    if (arrayEquals(data.subarray(0, 4), NAL_START_FIRST)) {
+    if (util.arrayEquals(data.subarray(0, 4), NAL_START_FIRST)) {
       this.start = data.subarray(0, 4);
       this.header = data[4];
       this.payload = data.subarray(5);
-    } else if (arrayEquals(data.subarray(0, 3), NAL_START_SECOND)) {
+    } else if (util.arrayEquals(data.subarray(0, 3), NAL_START_SECOND)) {
       this.start = data.subarray(0, 3);
       this.header = data[3];
       this.payload = data.subarray(4);
@@ -5088,6 +4903,8 @@ var NALU = class {
 
 // src/mpegts.ts
 var jsCrcModels = __toESM(require_models(), 1);
+import * as util2 from "./util.js";
+import * as cmdutil from "./cmdutil.js";
 var disableIntegrityCheck = false;
 var MPEGTSPacketBase = class {
   reinit(data) {
@@ -5109,12 +4926,12 @@ var MPEGTSPacketHeader = class extends MPEGTSPacketBase {
     this.init(data);
   }
   init(data) {
-    checkNumberEqual(data[0], 71, "sync byte error", !disableIntegrityCheck);
-    checkNumberNotEqual(data[1] >> 7, 1, "error indicator set", !disableIntegrityCheck);
+    util2.checkNumberEqual(data[0], 71, "sync byte error", !disableIntegrityCheck);
+    util2.checkNumberNotEqual(data[1] >> 7, 1, "error indicator set", !disableIntegrityCheck);
     this.isContinuePacket = !(data[1] >> 6 & 1);
     this.transportPriority = data[1] >> 5 & 1;
     this.pid = (data[1] & 31) << 8 | data[2];
-    checkNumberNotEqual(data[3] >> 4 & 3, 0, "adaptation field control field === 0", !disableIntegrityCheck);
+    util2.checkNumberNotEqual(data[3] >> 4 & 3, 0, "adaptation field control field === 0", !disableIntegrityCheck);
     this.hasAdaptationControl = Boolean(data[3] >> 5 & 1);
     this.hasPayload = Boolean(data[3] >> 4 & 1);
     this.continuityCount = data[3] & 15;
@@ -5168,7 +4985,7 @@ var MPEGTSPacket = class extends MPEGTSPacketBase {
   }
   init(data) {
     if (!disableIntegrityCheck && data.length !== 188) {
-      warn("this MPEG TS Packet has trailing garbage, will discard them");
+      cmdutil.warn("this MPEG TS Packet has trailing garbage, will discard them");
       data = data.subarray(0, 188);
     }
     this.header.reinit(data.subarray(0, 4));
@@ -5233,13 +5050,13 @@ var MPEGTSPESPacketBase = class {
       throw new Error("update() expects a continue packet");
     this.currentCounter++;
     this.currentCounter &= 15;
-    checkNumberEqual(
+    util2.checkNumberEqual(
       data.header.pid,
       this.pid,
       "provided packet's pid do not match that of this pes",
       !disableIntegrityCheck
     );
-    checkNumberEqual(
+    util2.checkNumberEqual(
       data.header.continuityCount,
       this.currentCounter,
       "continuity count mismatch",
@@ -5251,7 +5068,7 @@ var MPEGTSPESPacketBase = class {
       this.init(data);
       return this.complete;
     }
-    this.buffer = appendUint8Array(this.buffer, data.payload);
+    this.buffer = util2.appendUint8Array(this.buffer, data.payload);
     if (this.realUpdate())
       this.complete = true;
     return this.complete;
@@ -5291,9 +5108,9 @@ var MPEGTSPES = class extends MPEGTSPESPacketBase {
     this.header = this.buffer.subarray(0, 6);
     this.buffer = this.buffer.subarray(6);
     if (this.streamID >> 5 === 6 || this.streamID >> 4 === 14) {
-      checkNumberEqual(this.buffer[0] >> 6, 2, "start two bits not 2", !disableIntegrityCheck);
+      util2.checkNumberEqual(this.buffer[0] >> 6, 2, "start two bits not 2", !disableIntegrityCheck);
       this.payloadStartOffset = 6 + 3 + this.buffer[2];
-      this.header = appendUint8Array(
+      this.header = util2.appendUint8Array(
         this.header,
         this.buffer.subarray(0, 3 + this.buffer[2])
       );
@@ -5309,13 +5126,13 @@ var MPEGTSPES = class extends MPEGTSPESPacketBase {
   }
   realUpdate() {
     if (this.remainingLength === -1) {
-      this.payload = appendUint8Array(this.payload, this.buffer);
+      this.payload = util2.appendUint8Array(this.payload, this.buffer);
       this.buffer = new Uint8Array();
       return false;
     }
     const sliceLength = Math.min(this.remainingLength, this.buffer.length);
     this.remainingLength -= sliceLength;
-    this.payload = appendUint8Array(
+    this.payload = util2.appendUint8Array(
       this.payload,
       this.buffer.subarray(0, sliceLength)
     );
@@ -5366,11 +5183,12 @@ var MPEGTS = class {
     return ret;
   }
   dump() {
-    return concatUint8Arrays(this.packets.map((e, i2) => e.dump()));
+    return util2.concatUint8Arrays(this.packets.map((e, i2) => e.dump()));
   }
 };
 
 // src/decrypt.ts
+import * as util3 from "./util.js";
 var Decrypter = class _Decrypter {
   // each of the Decrypter instance will have its own CNTVH5PlayerModule module object
   CNTVH5PlayerModule = CNTVModule2();
@@ -5506,14 +5324,14 @@ var Decrypter = class _Decrypter {
             tsPacket.adaptationField = new MPEGTSPacketAdaptationField();
           tsPacket.adaptationField.payloadLength = 188 - 4 - 1 - offset - newNALU.byteLength;
           if (tsPacket.adaptationField.payloadLength)
-            tsPacket.adaptationField.payload = concatUint8Arrays([
+            tsPacket.adaptationField.payload = util3.concatUint8Arrays([
               // the header (we put nothing inside)
               Uint8Array.of(0),
               tsPacket.adaptationField.payloadLength > 1 ? new Uint8Array(tsPacket.adaptationField.payloadLength - 1).fill(255) : new Uint8Array()
             ]);
           bytesToCopy = newNALU.byteLength + offset;
         }
-        tsPacket.payload = concatUint8Arrays([
+        tsPacket.payload = util3.concatUint8Arrays([
           // pes header if exists
           tsPacket.payload.subarray(0, offset),
           // nalu content
@@ -5527,6 +5345,8 @@ var Decrypter = class _Decrypter {
 };
 
 // src/web-decrypt-worker.ts
+import * as cmdutil2 from "./cmdutil.js";
+import * as util4 from "./util.js";
 var decryptStatus = 0 /* NOT_DECRYPTING */;
 var decrypter = null;
 self.addEventListener("message", (e) => {
@@ -5534,7 +5354,7 @@ self.addEventListener("message", (e) => {
   switch (d.type) {
     case 0 /* WANT_DECRYPT_BUFFER */:
       if (decryptStatus !== 0 /* NOT_DECRYPTING */) {
-        error("already decrypting");
+        cmdutil2.error("already decrypting");
         break;
       }
       decryptStatus = 1 /* DECRYPTING_BUFFER_INITIALIZING */;
@@ -5550,7 +5370,7 @@ self.addEventListener("message", (e) => {
       break;
     case 1 /* WANT_DECRYPT_GUID */:
       if (decryptStatus !== 0 /* NOT_DECRYPTING */) {
-        error("already decrypting");
+        cmdutil2.error("already decrypting");
         break;
       }
       decryptStatus = 3 /* DECRYPTING_GUID */;
@@ -5569,7 +5389,7 @@ self.addEventListener("message", (e) => {
       break;
     case 3 /* PUSH_WORKER_ENCRYPTED_BUFFER */:
       if (decryptStatus !== 2 /* DECRYPTING_BUFFER_CAN_PUSH */) {
-        error("decrypter has not initialized or type is not custom buffer");
+        cmdutil2.error("decrypter has not initialized or type is not custom buffer");
         break;
       }
       try {
@@ -5587,7 +5407,7 @@ self.addEventListener("message", (e) => {
       break;
     case 5 /* FINISH_DECRYPT_BUFFER */:
       if (decryptStatus !== 2 /* DECRYPTING_BUFFER_CAN_PUSH */) {
-        error("decrypt type is not custom buffer");
+        cmdutil2.error("decrypt type is not custom buffer");
         break;
       }
       decrypter.endDecryptSession();
@@ -5600,7 +5420,7 @@ self.addEventListener("message", (e) => {
     case 8 /* REPORT_LOG */:
     case 9 /* REPORT_WARN */:
     case 10 /* REPORT_ERROR */:
-      error("this message is not intended to be sent to the worker");
+      cmdutil2.error("this message is not intended to be sent to the worker");
       break;
   }
 });
@@ -5610,11 +5430,11 @@ function sendMessage(type, payload, transferArr) {
 async function decryptGUID(guid, resolution) {
   await decrypter.beginDecryptSession();
   let s = 0;
-  for await (const [tsBuffer, totalSlice] of util_exports.getTsFromM3U8(
-    await util_exports.getM3U8FromGUID(guid, resolution)
+  for await (const [tsBuffer, totalSlice] of util4.getTsFromM3U8(
+    await util4.getM3U8FromGUID(guid, resolution)
   )) {
+    cmdutil2.log(`decrypting slice ${s++}.ts...`);
     const buffer2 = decrypter.decryptTsBufferUint8Array(tsBuffer);
-    log(`decrypting slice ${s++}.ts...`);
     sendMessage(
       4 /* PUSH_BROWSER_DECRYPTED_BUFFER */,
       { buffer: buffer2, totalSlice },
@@ -5622,18 +5442,18 @@ async function decryptGUID(guid, resolution) {
     );
   }
 }
-setLogFunc((type, message) => {
+cmdutil2.setLogFunc((type, message) => {
   switch (type) {
-    case 0 /* DEBUG */:
+    case cmdutil2.LogType.DEBUG:
       sendMessage(7 /* REPORT_DEBUG */, { message });
       break;
-    case 1 /* LOG */:
+    case cmdutil2.LogType.LOG:
       sendMessage(8 /* REPORT_LOG */, { message });
       break;
-    case 2 /* WARN */:
+    case cmdutil2.LogType.WARN:
       sendMessage(9 /* REPORT_WARN */, { message });
       break;
-    case 3 /* ERROR */:
+    case cmdutil2.LogType.ERROR:
       sendMessage(10 /* REPORT_ERROR */, { message });
       break;
   }
