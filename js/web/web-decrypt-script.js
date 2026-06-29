@@ -401,7 +401,8 @@ form.addEventListener("submit", async (e) => {
         },
         Number(maxBufferSlice.value) ?? 10
       )) {
-        setDecryptStatus(currentSlice, totalSlice);
+        setDecryptStatus(currentSlice + 1, totalSlice);
+        log(`decrypting slice ${currentSlice}.ts...`);
         let decBuf = await decryptWorkerWrapper.decryptTsBuffer(buffer);
         if (!decryptBuffers.length || decryptBuffers.at(-1).byteLength + decBuf.byteLength > MAX_TS_CHUNK_SIZE) {
           let size = decBuf.byteLength;
