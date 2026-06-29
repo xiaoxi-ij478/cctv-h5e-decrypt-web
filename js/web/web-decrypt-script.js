@@ -284,6 +284,9 @@ var maxBufferSlice = document.getElementById("max-buffer-slices");
 var form = document.getElementById("form");
 var logs = document.getElementById("logs");
 var tsBufferStatus = document.getElementById("tsbuffer-status");
+var decryptStatus = document.getElementById("decrypt-status");
+var tsBufferStatusText = document.getElementById("tsbuffer-status-text");
+var decryptStatusText = document.getElementById("decrypt-status-text");
 var failure = document.getElementById("failure");
 var success = document.getElementById("success");
 var failureReason = document.getElementById("failure-reason");
@@ -301,11 +304,25 @@ function setLogEntry(message) {
 function clearLogEntry() {
   logs.textContent = "";
 }
-function setBufferStatus(message) {
-  tsBufferStatus.textContent = message;
+function setBufferStatus(current, total) {
+  tsBufferStatus.value = current;
+  tsBufferStatus.max = total;
+  tsBufferStatusText.textContent = `${current} / ${total}`;
 }
 function clearBufferStatus() {
-  tsBufferStatus.textContent = "";
+  tsBufferStatus.value = 0;
+  tsBufferStatus.max = 1;
+  tsBufferStatusText.textContent = "";
+}
+function setDecryptStatus(current, total) {
+  decryptStatus.value = current;
+  decryptStatus.max = total;
+  decryptStatusText.textContent = `${current} / ${total}`;
+}
+function clearDecryptStatus() {
+  decryptStatus.value = 0;
+  decryptStatus.max = 1;
+  decryptStatusText.textContent = "";
 }
 function resetStatus() {
 }
@@ -325,6 +342,7 @@ function setFailure(reason) {
 function reset() {
   clearLogEntry();
   clearBufferStatus();
+  clearDecryptStatus();
   failure.classList.add("nodisplay");
   success.classList.add("nodisplay");
   resetStatus();
@@ -377,13 +395,13 @@ form.addEventListener("submit", async (e) => {
           Number(new FormData(form).get("resolution"))
         ),
         (e2) => {
-          setBufferStatus(`${e2.currentSize} / ${e2.maxSize}`);
+          setBufferStatus(e2.currentSize, e2.maxSize);
           if (e2.currentSlice !== null)
             log(`downloading slice ${e2.currentSlice}.ts...`);
         },
         Number(maxBufferSlice.value) ?? 10
       )) {
-        log(`decrypting slice ${currentSlice}.ts...`);
+        setDecryptStatus(currentSlice, totalSlice);
         let decBuf = await decryptWorkerWrapper.decryptTsBuffer(buffer);
         if (!decryptBuffers.length || decryptBuffers.at(-1).byteLength + decBuf.byteLength > MAX_TS_CHUNK_SIZE) {
           let size = decBuf.byteLength;
